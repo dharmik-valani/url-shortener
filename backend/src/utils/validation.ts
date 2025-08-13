@@ -7,14 +7,47 @@ import { IUrlCreate, IValidationResult } from '../types';
  */
 
 export class ValidationService {
+  private static readonly UTM_SCHEMA = Joi.object({
+    utm_source: Joi.string().max(100).pattern(/^[a-zA-Z0-9_\-\.]+$/),
+    utm_medium: Joi.string().max(100).pattern(/^[a-zA-Z0-9_\-\.]+$/),
+    utm_campaign: Joi.string().max(100).pattern(/^[a-zA-Z0-9_\-\.]+$/),
+    utm_term: Joi.string().max(100).pattern(/^[a-zA-Z0-9_\-\.\s]+$/),
+    utm_content: Joi.string().max(100).pattern(/^[a-zA-Z0-9_\-\.\s]+$/)
+  }).unknown(true); // Allow other query parameters
+
   private static readonly URL_SCHEMA = Joi.object({
     originalUrl: Joi.string()
       .uri({ scheme: ['http', 'https'] })
       .max(2048)
+      .custom((value, helpers) => {
+        try {
+          const url = new URL(value);
+          
+          // Validate UTM parameters if present
+          const utmParams = {};
+          url.searchParams.forEach((value, key) => {
+            if (key.startsWith('utm_')) {
+              utmParams[key] = value;
+            }
+          });
+          
+          if (Object.keys(utmParams).length > 0) {
+            const { error } = ValidationService.UTM_SCHEMA.validate(utmParams);
+            if (error) {
+              return helpers.error('string.utmInvalid');
+            }
+          }
+          
+          return value;
+        } catch (err) {
+          return helpers.error('string.uri');
+        }
+      })
       .required()
       .messages({
         'string.uri': 'Please provide a valid URL',
         'string.max': 'URL is too long (max 2048 characters)',
+        'string.utmInvalid': 'Invalid UTM parameters',
         'any.required': 'URL is required'
       }),
     title: Joi.string()

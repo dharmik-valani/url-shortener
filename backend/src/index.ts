@@ -100,10 +100,11 @@ class Server {
 
     // CORS configuration
     this.app.use(cors({
-      origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
-      credentials: true,
+      origin: true, // Allow all origins in development
+      credentials: false, // Disable credentials for now
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      exposedHeaders: ['Content-Length', 'Content-Type']
     }));
 
     // Compression middleware

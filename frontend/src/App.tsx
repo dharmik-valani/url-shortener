@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster, toast } from 'react-hot-toast'
+import { shortenUrl, checkRateLimit } from './utils/api'
 import {
   Box,
   Button,
@@ -96,39 +97,22 @@ function App() {
       urlToShorten = `https://${url}`
     }
 
-    try {
-      new URL(urlToShorten)
-    } catch (error) {
-      toast.error('Please enter a valid URL')
-      return
-    }
-
     setLoading(true)
     try {
-      const response = await fetch('http://localhost:3001/api/urls', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ originalUrl: urlToShorten }),
-      })
+      // Check rate limit before making the request
+      if (!checkRateLimit()) {
+        return;
+      }
 
-      const data = await response.json()
-      
-      if (data.success) {
-        setUrlData(data.data)
+      const response = await shortenUrl(urlToShorten);
+      if (response.success && response.data) {
+        setUrlData(response.data)
         toast.success('URL shortened successfully!')
-      } else {
-        throw new Error(data.error || 'Failed to shorten URL')
       }
     } catch (error) {
       console.error('Error:', error)
       if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch')) {
-          toast.error('Unable to connect to the server. Please make sure the backend is running.')
-        } else {
-          toast.error(error.message)
-        }
+        toast.error(error.message)
       } else {
         toast.error('An unexpected error occurred')
       }
