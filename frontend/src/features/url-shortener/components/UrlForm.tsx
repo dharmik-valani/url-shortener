@@ -9,8 +9,10 @@ import {
 import { validateUrl } from '../../../utils/validation';
 import { useUrlShortener } from '../hooks/useUrlShortener';
 
+import { UrlData } from '../../../types/api';
+
 interface UrlFormProps {
-  onSuccess: (data: any) => void;
+  onSuccess: (data: UrlData) => void;
 }
 
 export const UrlForm = ({ onSuccess }: UrlFormProps) => {
@@ -29,9 +31,9 @@ export const UrlForm = ({ onSuccess }: UrlFormProps) => {
     if (!validateUrl(urlToShorten)) return;
 
     try {
-      const result = await shortenUrl(urlToShorten);
-      if (result.success) {
-        onSuccess(result.data);
+      const response = await shortenUrl(urlToShorten);
+      if (response.success && response.data) {
+        onSuccess(response.data);
         setUrl('');
       }
     } catch (error) {

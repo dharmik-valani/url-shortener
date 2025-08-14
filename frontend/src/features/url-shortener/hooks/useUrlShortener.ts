@@ -56,6 +56,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { shortenUrl } from '../../../services/api';
+import { ApiResponse, UrlData } from '../../../types/api';
 
 export const useUrlShortener = () => {
   /**
@@ -100,40 +101,14 @@ export const useUrlShortener = () => {
    */
   const shortenMutation = useMutation({
     mutationFn: (url: string) => shortenUrl(url),
-    onSuccess: (data) => {
-      /**
-       * Why Invalidate vs Direct Update?
-       * 
-       * 1. Cache Consistency:
-       *    - Ensures all components see latest data
-       *    - Triggers automatic refetch
-       *    - Updates all related queries
-       * 
-       * 2. Alternative Approach:
-       *    Direct cache update:
-       *    ```
-       *    queryClient.setQueryData(['recentUrls'], (old) => [...old, data])
-       *    ```
-       *    Problems:
-       *    - Might miss other updates
-       *    - Manual cache management
-       *    - Potential stale data
-       */
-      queryClient.invalidateQueries(['recentUrls']);
-      
-      /**
-       * Why Toast vs Alert?
-       * 
-       * 1. Non-blocking:
-       *    - Doesn't interrupt user flow
-       *    - Automatically dismisses
-       * 
-       * 2. Better UX:
-       *    - Non-modal
-       *    - Multiple notifications
-       *    - Animation support
-       */
-      toast.success('URL shortened successfully!');
+    onSuccess: (response: ApiResponse<UrlData>) => {
+      if (response.success && response.data) {
+        queryClient.invalidateQueries(['recentUrls']);
+        toast.success('URL shortened successfully!');
+        return response;
+      } else {
+        throw new Error(response.error || 'Failed to shorten URL');
+      }
     },
     onError: (error: Error) => {
       /**
