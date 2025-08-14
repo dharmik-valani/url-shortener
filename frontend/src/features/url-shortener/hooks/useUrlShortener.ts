@@ -1,18 +1,56 @@
 /**
- * Custom hook for URL shortening operations
+ * URL Shortening Hook
  * 
- * Why a Custom Hook?
- * 1. Separation of Concerns: Isolates URL shortening logic from UI
- * 2. Reusability: Can be used across different components
- * 3. Testing: Easier to test business logic in isolation
- * 4. State Management: Centralizes related state and operations
+ * Why TanStack Query vs Alternatives?
  * 
- * Why TanStack Query?
- * 1. Automatic caching: Prevents unnecessary API calls
- * 2. Loading/Error states: Built-in state management
- * 3. Retry logic: Handles network issues gracefully
- * 4. Cache invalidation: Keeps data fresh
- * 5. TypeScript support: Type-safe operations
+ * 1. Zustand Comparison:
+ *    Zustand would require:
+ *    - Manual cache implementation
+ *    - Custom error handling
+ *    - Manual loading states
+ *    - No automatic background updates
+ *    Example:
+ *    ```
+ *    const useStore = create((set) => ({
+ *      urls: [],
+ *      loading: false,
+ *      error: null,
+ *      fetch: async () => {
+ *        set({ loading: true });
+ *        try {
+ *          const data = await api.get();
+ *          set({ data, loading: false });
+ *        } catch (error) {
+ *          set({ error, loading: false });
+ *        }
+ *      }
+ *    }));
+ *    ```
+ * 
+ * 2. Redux Comparison:
+ *    Redux would require:
+ *    - Actions for each state (request, success, failure)
+ *    - Reducers for state updates
+ *    - Middleware for async operations
+ *    - More boilerplate code
+ * 
+ * 3. Context + useReducer Comparison:
+ *    Would need:
+ *    - Manual cache implementation
+ *    - No automatic background updates
+ *    - More complex error handling
+ *    - Manual retry logic
+ * 
+ * Why Custom Hook vs Component Logic?
+ * 1. Separation of Concerns
+ *    - Business logic isolated from UI
+ *    - Easier to test
+ *    - Reusable across components
+ * 
+ * 2. Performance
+ *    - Memoization of callbacks
+ *    - Prevents unnecessary re-renders
+ *    - Centralized state management
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,40 +58,120 @@ import { toast } from 'react-hot-toast';
 import { shortenUrl } from '../../../services/api';
 
 export const useUrlShortener = () => {
+  /**
+   * Why QueryClient?
+   * - Centralized cache management
+   * - Shared across components
+   * - Automatic cache updates
+   * - Background refetching
+   * 
+   * Alternative Approach:
+   * Could use local state + useEffect, but would lose:
+   * - Automatic cache invalidation
+   * - Background updates
+   * - Optimistic updates
+   * - Retry logic
+   */
   const queryClient = useQueryClient();
 
   /**
-   * Why Mutation?
-   * 1. Handles POST/PUT/DELETE operations
-   * 2. Manages loading/error states
-   * 3. Provides retry capabilities
-   * 4. Supports optimistic updates
+   * Why Mutation vs Direct API Call?
+   * 
+   * 1. State Management:
+   *    Mutation provides:
+   *    - Loading state
+   *    - Error state
+   *    - Success state
+   *    Alternative would be:
+   *    ```
+   *    const [loading, setLoading] = useState(false);
+   *    const [error, setError] = useState(null);
+   *    ```
+   * 
+   * 2. Cache Management:
+   *    - Automatic cache updates
+   *    - Optimistic updates
+   *    - Rollback on error
+   * 
+   * 3. Error Handling:
+   *    - Automatic retries
+   *    - Error boundary integration
+   *    - Toast notifications
    */
   const shortenMutation = useMutation({
     mutationFn: (url: string) => shortenUrl(url),
     onSuccess: (data) => {
-      // Why invalidate queries?
-      // 1. Ensures fresh data
-      // 2. Triggers automatic refetch
-      // 3. Updates all related components
+      /**
+       * Why Invalidate vs Direct Update?
+       * 
+       * 1. Cache Consistency:
+       *    - Ensures all components see latest data
+       *    - Triggers automatic refetch
+       *    - Updates all related queries
+       * 
+       * 2. Alternative Approach:
+       *    Direct cache update:
+       *    ```
+       *    queryClient.setQueryData(['recentUrls'], (old) => [...old, data])
+       *    ```
+       *    Problems:
+       *    - Might miss other updates
+       *    - Manual cache management
+       *    - Potential stale data
+       */
       queryClient.invalidateQueries(['recentUrls']);
       
-      // Why toast?
-      // 1. User feedback
-      // 2. Non-blocking notification
-      // 3. Consistent UI pattern
+      /**
+       * Why Toast vs Alert?
+       * 
+       * 1. Non-blocking:
+       *    - Doesn't interrupt user flow
+       *    - Automatically dismisses
+       * 
+       * 2. Better UX:
+       *    - Non-modal
+       *    - Multiple notifications
+       *    - Animation support
+       */
       toast.success('URL shortened successfully!');
     },
     onError: (error: Error) => {
-      // Why centralized error handling?
-      // 1. Consistent error messages
-      // 2. Single point of modification
-      // 3. Better error tracking
+      /**
+       * Why Centralized Error Handling?
+       * 
+       * 1. Consistency:
+       *    - Same error format
+       *    - Same error display
+       *    - Same error tracking
+       * 
+       * 2. Maintenance:
+       *    - Single point of modification
+       *    - Easier debugging
+       *    - Better error tracking
+       */
       toast.error(error.message || 'Failed to shorten URL');
     }
   });
 
   return {
+    /**
+     * Why This Return Structure?
+     * 
+     * 1. Clean API:
+     *    - Only exposed what's needed
+     *    - Clear function names
+     *    - TypeScript support
+     * 
+     * 2. Alternative:
+     *    Could return mutation object:
+     *    ```
+     *    return shortenMutation;
+     *    ```
+     *    Problems:
+     *    - Exposes internal implementation
+     *    - More complex API
+     *    - Breaking changes risk
+     */
     shortenUrl: shortenMutation.mutate,
     isLoading: shortenMutation.isLoading,
     error: shortenMutation.error
